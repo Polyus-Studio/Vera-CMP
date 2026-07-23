@@ -1,0 +1,126 @@
+{
+  "name": "@polyus-studio/vera-cmp",
+  "version": "0.1.0",
+  "description": "Centralized cookie consent management (CMP) for 30+ sites — a typed wrapper around vanilla-cookieconsent v3 with Vue/Vite, Nuxt, React and Next.js adapters, tracker loaders, Google Consent Mode and GPC.",
+  "type": "module",
+  "license": "MIT",
+  "author": "Polyus Studio",
+  "homepage": "https://github.com/Polyus-Studio/Vera-CMP#readme",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Polyus-Studio/Vera-CMP.git"
+  },
+  "bugs": {
+    "url": "https://github.com/Polyus-Studio/Vera-CMP/issues"
+  },
+  "keywords": [
+    "cookie-consent",
+    "gdpr",
+    "ccpa",
+    "consent-mode",
+    "gpc",
+    "vanilla-cookieconsent",
+    "cmp",
+    "privacy",
+    "vue",
+    "nuxt",
+    "react",
+    "nextjs"
+  ],
+  "sideEffects": [
+    "**/*.css"
+  ],
+  "engines": {
+    "node": ">=18"
+  },
+  "files": [
+    "dist"
+  ],
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    },
+    "./react": {
+      "types": "./dist/react.d.ts",
+      "import": "./dist/react.js"
+    },
+    "./next": {
+      "types": "./dist/next.d.ts",
+      "import": "./dist/next.js"
+    },
+    "./vue": {
+      "types": "./dist/vue.d.ts",
+      "import": "./dist/vue.js"
+    },
+    "./nuxt": {
+      "types": "./dist/nuxt/module.d.ts",
+      "import": "./dist/nuxt/module.js"
+    },
+    "./style.css": "./dist/vera-cmp.css",
+    "./package.json": "./package.json"
+  },
+  "main": "./dist/index.js",
+  "module": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "scripts": {
+    "dev": "tsup --watch",
+    "build": "npm run build:clean && npm run build:js && npm run build:client-directive && npm run build:css",
+    "build:clean": "node -e \"require('node:fs').rmSync('dist',{recursive:true,force:true})\"",
+    "build:js": "tsup",
+    "build:client-directive": "node scripts/add-use-client.mjs",
+    "build:css": "esbuild src/styles/vera-cmp.css --bundle --outfile=dist/vera-cmp.css --loader:.svg=dataurl",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest",
+    "test:run": "vitest run",
+    "test:fixtures": "node scripts/test-fixtures.mjs",
+    "prepublishOnly": "npm run build"
+  },
+  "dependencies": {
+    "vanilla-cookieconsent": "^3.1.0"
+  },
+  "peerDependencies": {
+    "@nuxt/kit": "^3.0.0",
+    "next": ">=13",
+    "react": ">=17",
+    "react-dom": ">=17",
+    "vue": "^3.0.0"
+  },
+  "peerDependenciesMeta": {
+    "@nuxt/kit": {
+      "optional": true
+    },
+    "next": {
+      "optional": true
+    },
+    "react": {
+      "optional": true
+    },
+    "react-dom": {
+      "optional": true
+    },
+    "vue": {
+      "optional": true
+    }
+  },
+  "devDependencies": {
+    "@nuxt/kit": "^3.13.0",
+    "@nuxt/schema": "^3.13.0",
+    "@testing-library/dom": "^10.4.0",
+    "@testing-library/react": "^16.0.1",
+    "@types/react": "^18.3.11",
+    "@types/react-dom": "^18.3.0",
+    "esbuild": "^0.24.0",
+    "jsdom": "^25.0.1",
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1",
+    "tsup": "^8.3.0",
+    "typescript": "^5.6.3",
+    "vitest": "^2.1.3",
+    "vue": "^3.5.12"
+  },
+  "publishConfig": {
+    "registry": "https://npm.pkg.github.com",
+    "access": "restricted"
+  }
+}

@@ -1,0 +1,17 @@
+node_modules/
+dist/
+coverage/
+*.tgz
+*.log
+.DS_Store
+.idea/
+.vscode/
+.nuxt/
+.output/
+.next/
+.turbo/
+fixtures/**/node_modules/
+fixtures/**/dist/
+fixtures/**/.nuxt/
+fixtures/**/.output/
+fixtures/**/.next/

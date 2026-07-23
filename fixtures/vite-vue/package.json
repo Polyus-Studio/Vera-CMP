@@ -1,0 +1,14 @@
+{
+  "name": "fixture-vite-vue",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "build": "vite build"
+  },
+  "dependencies": {
+    "vue": "^3.5.12"
+  },
+  "devDependencies": {
+    "vite": "^5.4.10"
+  }
+}
