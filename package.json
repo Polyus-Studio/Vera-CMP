@@ -1,6 +1,6 @@
 {
   "name": "@polyus-studio/vera-cmp",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "Centralized cookie consent management (CMP) for 30+ sites — a typed wrapper around vanilla-cookieconsent v3 with Vue/Vite, Nuxt, React and Next.js adapters, tracker loaders, Google Consent Mode and GPC.",
   "type": "module",
   "license": "MIT",
@@ -73,8 +73,9 @@
     "typecheck": "tsc --noEmit",
     "test": "vitest",
     "test:run": "vitest run",
+    "test:styles": "node scripts/test-styles.mjs",
     "test:fixtures": "node scripts/test-fixtures.mjs",
-    "release:check": "npm run typecheck && npm run test:run && npm run build && npm run test:fixtures && npm pack --dry-run",
+    "release:check": "npm run typecheck && npm run test:run && npm run build && npm run test:styles && npm run test:fixtures && npm pack --dry-run",
     "prepublishOnly": "npm run build"
   },
   "dependencies": {

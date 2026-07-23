@@ -99,7 +99,7 @@
 
 /* Small-screen affordances (base styles are already responsive). */
 @media (max-width: 640px) {
-  #cc-main .cm__btn,
+  #cc-main .cm__btn:not(.cm__btn--close),
   #cc-main .pm__btn {
     width: 100%;
   }
