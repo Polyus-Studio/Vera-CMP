@@ -1,0 +1,22 @@
+name: Package readiness
+
+# Manual release verification only. Publishing will be added after npm Trusted
+# Publishing is configured; this workflow intentionally has no publish step.
+on:
+  workflow_dispatch:
+
+jobs:
+  check:
+    name: Verify npm package
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          registry-url: 'https://registry.npmjs.org'
+          cache: npm
+      - run: npm ci
+      - run: npm run release:check

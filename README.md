@@ -23,16 +23,8 @@ through config.
 
 ## Installation
 
-The package is published to **GitHub Packages**. Tell npm where to find the
-`@polyus-studio` scope by adding an `.npmrc` to your project:
-
-```ini
-# .npmrc
-@polyus-studio:registry=https://npm.pkg.github.com
-//npm.pkg.github.com/:_authToken=${GITHUB_TOKEN}
-```
-
-`GITHUB_TOKEN` must be a token with `read:packages`. Then:
+The package is published publicly on the [npm registry](https://www.npmjs.com/).
+No custom registry configuration or authentication is required to install it:
 
 ```bash
 npm install @polyus-studio/vera-cmp
@@ -327,11 +319,21 @@ npm run typecheck     # tsc --noEmit
 npm run test:run      # vitest
 npm run build         # dist/*.js, *.d.ts and dist/vera-cmp.css
 npm run test:fixtures # build the Vite/Next/Nuxt consumer fixtures against the packed package
+npm run release:check # all checks above plus npm pack --dry-run
 ```
 
 CI runs typecheck + unit tests + build, then builds the consumer fixtures.
-Publishing to GitHub Packages is a manual `workflow_dispatch` (see
-`.github/workflows/publish.yml`).
+Until npm Trusted Publishing is configured, verify a release with
+`npm run release:check` and publish it manually from an npm account that belongs
+to the `polyus-studio` organization and has two-factor authentication enabled:
+
+```bash
+npm login
+npm publish
+```
+
+`publishConfig` fixes the destination to the public npm registry and the package
+access level to `public`.
 
 ## License
 

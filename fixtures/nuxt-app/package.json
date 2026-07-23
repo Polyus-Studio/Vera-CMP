@@ -6,6 +6,9 @@
     "build": "nuxt build"
   },
   "devDependencies": {
-    "nuxt": "^3.13.2"
+    "nuxt": "3.13.2"
+  },
+  "overrides": {
+    "nitropack": "2.9.7"
   }
 }
