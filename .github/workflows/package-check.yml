@@ -1,7 +1,7 @@
 name: Package readiness
 
-# Manual release verification only. Publishing will be added after npm Trusted
-# Publishing is configured; this workflow intentionally has no publish step.
+# Manual release verification only. Publication is handled separately by
+# publish.yml through npm Trusted Publishing and GitHub OIDC.
 on:
   workflow_dispatch:
 
