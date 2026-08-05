@@ -9,6 +9,7 @@ app.use(
     siteName: 'Vite Fixture',
     language: 'en',
     links: { privacyPolicy: '/privacy', cookiePolicy: '/cookies' },
+    cookie: { name: 'vera_cmp_vite_fixture_consent' },
     trackers: {
       googleAnalytics: { id: 'G-TEST' },
     },

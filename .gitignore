@@ -15,3 +15,4 @@ fixtures/**/dist/
 fixtures/**/.nuxt/
 fixtures/**/.output/
 fixtures/**/.next/
+fixtures/next-app/next-env.d.ts

@@ -71,14 +71,21 @@ function buildCategories(
 }
 
 function buildCookie(config: PrivacyConsentConfig): CC.CookieOptions {
-  return {
+  const cookie: CC.CookieOptions = {
     name: config.cookie?.name ?? DEFAULT_COOKIE_NAME,
-    domain: config.cookie?.domain,
-    path: config.cookie?.path,
-    sameSite: config.cookie?.sameSite,
     expiresAfterDays:
       config.cookie?.expiresAfterDays ?? DEFAULT_COOKIE_EXPIRES_DAYS,
   }
+
+  // vanilla-cookieconsent merges this object over its defaults. Passing an
+  // optional key as `undefined` (or an empty domain) overwrites a valid
+  // default and produces attributes such as `Domain=undefined` or
+  // `Path=undefined`, so browsers refuse to persist the consent cookie.
+  if (config.cookie?.domain) cookie.domain = config.cookie.domain
+  if (config.cookie?.path) cookie.path = config.cookie.path
+  if (config.cookie?.sameSite) cookie.sameSite = config.cookie.sameSite
+
+  return cookie
 }
 
 /** Translate a {@link PrivacyConsentConfig} into a vanilla-cookieconsent config. */

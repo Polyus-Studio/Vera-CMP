@@ -1,6 +1,6 @@
 {
   "name": "@polyus-studio/vera-cmp",
-  "version": "0.1.1",
+  "version": "0.1.2",
   "description": "Centralized cookie consent management (CMP) for 30+ sites — a typed wrapper around vanilla-cookieconsent v3 with Vue/Vite, Nuxt, React and Next.js adapters, tracker loaders, Google Consent Mode and GPC.",
   "type": "module",
   "license": "MIT",

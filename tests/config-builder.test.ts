@@ -29,6 +29,43 @@ describe('config-builder', () => {
     expect(cfg.language.translations.ru).toBeDefined()
   })
 
+  it('preserves vanilla-cookieconsent storage defaults when cookie options are omitted', () => {
+    const cfg = buildCookieConsentConfig(base, noGpc, {})
+
+    expect(cfg.cookie).toEqual({
+      name: 'vera_cmp_consent',
+      expiresAfterDays: 182,
+    })
+    expect(cfg.cookie).not.toHaveProperty('domain')
+    expect(cfg.cookie).not.toHaveProperty('path')
+    expect(cfg.cookie).not.toHaveProperty('sameSite')
+  })
+
+  it('omits an empty domain while forwarding explicit cookie options', () => {
+    const cfg = buildCookieConsentConfig(
+      {
+        ...base,
+        cookie: {
+          name: 'site_consent',
+          domain: '',
+          path: '/',
+          sameSite: 'Strict',
+          expiresAfterDays: 30,
+        },
+      },
+      noGpc,
+      {},
+    )
+
+    expect(cfg.cookie).toEqual({
+      name: 'site_consent',
+      path: '/',
+      sameSite: 'Strict',
+      expiresAfterDays: 30,
+    })
+    expect(cfg.cookie).not.toHaveProperty('domain')
+  })
+
   it('adds autoClear cookies for configured trackers', () => {
     const cfg = buildCookieConsentConfig(base, noGpc, {})
     expect(cfg.categories.analytics.autoClear?.cookies.length).toBeGreaterThan(0)
