@@ -74,18 +74,63 @@ describe('config-builder', () => {
     ).toBe(true)
   })
 
-  it('locks GPC-denied categories and injects the notice', () => {
+  it('never marks GPC-denied categories read-only and injects the notice', () => {
+    // vanilla-cookieconsent force-accepts read-only categories on every
+    // acceptCategory() call ("Reject all" included), so GPC-denied categories
+    // must stay regular opt-in categories; the GPC guard enforces them.
     const cfg = buildCookieConsentConfig(
       base,
       { active: true, deniedCategories: ['marketing'] },
       {},
     )
-    expect(cfg.categories.marketing.readOnly).toBe(true)
+    expect(cfg.categories.marketing.readOnly).toBe(false)
     expect(cfg.categories.marketing.enabled).toBe(false)
+    expect(cfg.categories.necessary.readOnly).toBe(true)
     const en = cfg.language.translations.en as Translation
     expect(en.preferencesModal.sections[0]?.description).toContain(
       'Global Privacy Control',
     )
+    expect(en.preferencesModal.sections[0]?.description).toContain(
+      'cannot be switched on while the signal is active',
+    )
+  })
+
+  it('words the GPC notice for unlocked categories', () => {
+    const cfg = buildCookieConsentConfig(
+      { ...base, gpc: { lockDeniedCategories: false } },
+      { active: true, deniedCategories: ['marketing'] },
+      {},
+    )
+    expect(cfg.categories.marketing.readOnly).toBe(false)
+    const ru = cfg.language.translations.ru as Translation
+    expect(ru.preferencesModal.sections[0]?.description).toContain(
+      'включить их по отдельности',
+    )
+  })
+
+  it('does not claim analytics data is aggregated or anonymised', () => {
+    const cfg = buildCookieConsentConfig(base, noGpc, {})
+    const analytics = (locale: 'en' | 'ru') =>
+      (cfg.language.translations[locale] as Translation).preferencesModal.sections.find(
+        (section) => section.linkedCategory === 'analytics',
+      )?.description ?? ''
+    expect(analytics('en')).not.toMatch(/aggregated|anonymi[sz]ed/i)
+    expect(analytics('ru')).not.toMatch(/обезличен|агрегир/i)
+    expect(analytics('en')).not.toBe('')
+    expect(analytics('ru')).not.toBe('')
+  })
+
+  it('clears Yandex Metrica cookies with the analytics category when declared', () => {
+    const cfg = buildCookieConsentConfig(
+      { ...base, trackers: { yandexMetrica: {} } },
+      noGpc,
+      {},
+    )
+    const names = cfg.categories.analytics.autoClear?.cookies.map((c) => c.name) ?? []
+    expect(names).toEqual(
+      expect.arrayContaining(['_ym_uid', '_ym_d', '_ym_isad', '_ym_visorc']),
+    )
+    expect(names.some((name) => name instanceof RegExp && name.test('_ym_hostIndex'))).toBe(true)
   })
 
   it('honours the manageScriptTags override', () => {

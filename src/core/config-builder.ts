@@ -5,7 +5,7 @@ import {
   DEFAULT_COOKIE_NAME,
   KNOWN_COOKIES,
 } from './constants'
-import { shouldLockGpcCategories } from './gpc'
+import { shouldLockGpcCategories, shouldShowGpcNotice } from './gpc'
 import { buildTranslations } from './translations'
 import { resolveTrackers } from './trackers/registry'
 import type { Category, PrivacyConsentConfig } from './types'
@@ -17,7 +17,7 @@ export interface GpcState {
 
 type Callbacks = Pick<
   CC.CookieConsentConfig,
-  'onFirstConsent' | 'onConsent' | 'onChange'
+  'onFirstConsent' | 'onConsent' | 'onChange' | 'onModalShow' | 'onModalReady'
 >
 
 function defaultGuiOptions(): CC.GuiOptions {
@@ -52,18 +52,19 @@ function buildAutoClear(
 
 function buildCategories(
   config: PrivacyConsentConfig,
-  gpc: GpcState,
 ): CC.CookieConsentConfig['categories'] {
-  const lock = gpc.active && shouldLockGpcCategories(config.gpc)
   const categories: Record<string, CC.Category> = {}
 
   for (const category of CATEGORIES) {
     const isNecessary = category === 'necessary'
-    const deniedByGpc = gpc.active && gpc.deniedCategories.includes(category)
     categories[category] = {
       // opt-in: everything except necessary starts disabled.
       enabled: isNecessary,
-      readOnly: isNecessary || (deniedByGpc && lock),
+      // Only `necessary` is read-only. GPC-denied categories must NOT be:
+      // vanilla-cookieconsent force-accepts read-only categories on every
+      // acceptCategory() call, "Reject all" included. GPC is enforced by the
+      // GPC guard instead (see gpc-guard.ts).
+      readOnly: isNecessary,
       autoClear: buildAutoClear(category, config),
     }
   }
@@ -97,7 +98,8 @@ export function buildCookieConsentConfig(
   const translations = buildTranslations(config, {
     gpcActive: gpc.active,
     gpcDeniedCategories: gpc.deniedCategories,
-    showGpcNotice: config.gpc?.showHonoredNotice !== false,
+    gpcLocked: shouldLockGpcCategories(config.gpc),
+    showGpcNotice: shouldShowGpcNotice(config.gpc),
   })
 
   return {
@@ -110,7 +112,7 @@ export function buildCookieConsentConfig(
     disablePageInteraction: config.disablePageInteraction ?? false,
     guiOptions: config.guiOptions ?? defaultGuiOptions(),
     cookie: buildCookie(config),
-    categories: buildCategories(config, gpc),
+    categories: buildCategories(config),
     language: {
       default: config.language ?? 'en',
       autoDetect: config.autoDetectLanguage ? 'browser' : undefined,
@@ -119,5 +121,7 @@ export function buildCookieConsentConfig(
     onFirstConsent: callbacks.onFirstConsent,
     onConsent: callbacks.onConsent,
     onChange: callbacks.onChange,
+    onModalShow: callbacks.onModalShow,
+    onModalReady: callbacks.onModalReady,
   }
 }

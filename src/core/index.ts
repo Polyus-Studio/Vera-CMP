@@ -1,9 +1,15 @@
+import type * as CC from 'vanilla-cookieconsent'
 import * as CookieConsent from 'vanilla-cookieconsent'
 import { buildCookieConsentConfig } from './config-builder'
 import { KNOWN_COOKIES } from './constants'
 import { denyConsentMode, initConsentMode, updateConsentMode } from './consent-mode'
 import { eraseCookies } from './cookies'
-import { gpcDeniedCategories, isGpcActive } from './gpc'
+import {
+  gpcDeniedCategories,
+  isGpcActive,
+  shouldLockGpcCategories,
+} from './gpc'
+import { createGpcGuard, type GpcGuard } from './gpc-guard'
 import {
   clearController,
   getController,
@@ -26,6 +32,11 @@ import type {
   PrivacyConsentController,
   ResetOptions,
 } from './types'
+
+type ChangeParam = Parameters<NonNullable<CC.CookieConsentConfig['onChange']>>[0]
+
+/** Detaches the GPC guard of the current instance (see resetPrivacyConsent). */
+let detachGpcGuard: (() => void) | null = null
 
 function consentModeVariant(config: PrivacyConsentConfig): ConsentModeVariant {
   return config.consentMode?.mode ?? 'basic'
@@ -69,19 +80,31 @@ export function initPrivacyConsent(
   const cmEnabled = consentModeEnabled(config)
   const gpcActive = isGpcActive(config.gpc)
   const deniedByGpc = gpcActive ? gpcDeniedCategories(config.gpc) : []
+  const guard = createGpcGuard({
+    active: gpcActive,
+    deniedCategories: deniedByGpc,
+    locked: shouldLockGpcCategories(config.gpc),
+    manageScriptTags: config.manageScriptTags === true,
+  })
 
-  // Categories the current consent state accepts, minus anything GPC denies.
-  const effectiveAccepted = (): Category[] => {
-    const accepted = acceptedCategories()
-    return gpcActive
-      ? accepted.filter((category) => !deniedByGpc.includes(category))
-      : accepted
-  }
-
+  // Accepted categories minus anything GPC denies (unless explicitly allowed).
   const syncConsent = (): void => {
-    const accepted = effectiveAccepted()
+    const accepted = guard.filter(acceptedCategories())
     if (cmEnabled) updateConsentMode(accepted)
     applyConsent(config, accepted, mode)
+    guard.releaseScriptTags(accepted)
+  }
+
+  const currentCookie = (): CC.CookieValue => CookieConsent.getCookie()
+
+  // onChange fired while the guard re-persisted consent. On page load (stored
+  // consent overridden by GPC) it is reported after onConsent; otherwise the
+  // consent action that triggered it is reported in its place.
+  let deferredChange: ChangeParam | null = null
+  const flushDeferredChange = (): void => {
+    const change = deferredChange
+    deferredChange = null
+    if (change) config.onChange?.({ ...change, cookie: currentCookie() })
   }
 
   // 1. Consent Mode defaults + advanced eager loading BEFORE run().
@@ -93,24 +116,76 @@ export function initPrivacyConsent(
   // 2. Warn if GA and GTM would both run directly.
   warnOnGaGtmConflict(config)
 
+  // 3. GPC: hold back script tags of denied categories BEFORE run() collects
+  //    them, and watch for explicit "Save preferences" clicks.
+  detachGpcGuard?.()
+  guard.holdScriptTags()
+  guard.attach()
+  detachGpcGuard = () => guard.detach()
+
   const ccConfig = buildCookieConsentConfig(
     config,
     { active: gpcActive, deniedCategories: deniedByGpc },
     {
-      onFirstConsent: (param) => config.onFirstConsent?.(param),
+      onFirstConsent: (param) => {
+        const blocked = guard.enforce('all')
+        // The first consent reports the enforced state only.
+        deferredChange = null
+        config.onFirstConsent?.(
+          blocked.length > 0 ? { cookie: currentCookie() } : param,
+        )
+      },
       onConsent: (param) => {
+        const blocked = guard.enforce([])
         syncConsent()
-        config.onConsent?.(param)
+        config.onConsent?.(
+          blocked.length > 0 ? { cookie: currentCookie() } : param,
+        )
+        flushDeferredChange()
       },
       onChange: (param) => {
+        if (guard.enforcing) {
+          deferredChange = param
+          return
+        }
+        const blocked = guard.enforce(param.changedCategories)
+        deferredChange = null
         syncConsent()
-        config.onChange?.(param)
+        if (blocked.length === 0) {
+          config.onChange?.(param)
+          return
+        }
+        // Report the net change: the revoked categories never took effect.
+        const changedCategories = param.changedCategories.filter(
+          (category) => !blocked.includes(category as Category),
+        )
+        const changedServices = Object.fromEntries(
+          Object.entries(param.changedServices).filter(
+            ([category]) => !blocked.includes(category as Category),
+          ),
+        )
+        const servicesChanged = Object.values(changedServices).some(
+          (services) => services.length > 0,
+        )
+        if (changedCategories.length > 0 || servicesChanged) {
+          config.onChange?.({
+            cookie: currentCookie(),
+            changedCategories,
+            changedServices,
+          })
+        }
+      },
+      onModalReady: ({ modalName, modal }) => {
+        if (modalName === 'preferencesModal') guard.lockToggles(modal)
+      },
+      onModalShow: ({ modalName }) => {
+        if (modalName === 'preferencesModal') guard.lockToggles()
       },
     },
   )
 
   const ready = CookieConsent.run(ccConfig).then(() => {
-    reconcileGpc(gpcActive, deniedByGpc)
+    reconcileGpc(guard, syncConsent, flushDeferredChange)
   })
 
   const controller: PrivacyConsentController = {
@@ -118,7 +193,7 @@ export function initPrivacyConsent(
     openPreferences: () => CookieConsent.showPreferences(),
     reset: (options) => resetPrivacyConsent(options),
     acceptCategory: (categories = 'all') =>
-      CookieConsent.acceptCategory(categories),
+      CookieConsent.acceptCategory(categories, guard.exclusions()),
     getConsent: () => (isBrowser() ? CookieConsent.getUserPreferences() : null),
   }
 
@@ -127,22 +202,20 @@ export function initPrivacyConsent(
 }
 
 /**
- * GPC overrides previously stored consent: if the persisted cookie accepts a
- * GPC-denied category, re-persist consent without it. Tracker teardown and
- * Consent Mode were already handled by `syncConsent` (which filters GPC), so
- * this only makes the stored state and UI reflect the override.
+ * GPC overrides previously stored consent: if the persisted consent accepts a
+ * GPC-denied category that the visitor did not explicitly opt into, it is
+ * re-persisted without it. With vanilla-cookieconsent this already happened
+ * in `onConsent` during `run()`, so this is a safety net that is normally a
+ * no-op.
  */
-function reconcileGpc(gpcActive: boolean, deniedByGpc: Category[]): void {
-  if (!gpcActive || deniedByGpc.length === 0) return
-  const accepted = acceptedCategories()
-  const conflicting = accepted.filter((category) =>
-    deniedByGpc.includes(category),
-  )
-  if (conflicting.length === 0) return
-
-  const next = accepted.filter((category) => !deniedByGpc.includes(category))
-  // Triggers onChange → syncConsent, keeping everything consistent.
-  CookieConsent.acceptCategory(next)
+function reconcileGpc(
+  guard: GpcGuard,
+  syncConsent: () => void,
+  flushDeferredChange: () => void,
+): void {
+  if (guard.enforce([]).length === 0) return
+  syncConsent()
+  flushDeferredChange()
 }
 
 /** Open the preferences modal. */
@@ -176,6 +249,8 @@ export async function resetPrivacyConsent(
 
   // 3. Tear down vanilla-cookieconsent and delete its consent cookie.
   CookieConsent.reset(true)
+  detachGpcGuard?.()
+  detachGpcGuard = null
 
   // 4. Forget our own state.
   clearController()

@@ -9,6 +9,7 @@ first-class adapters for **Vue/Vite**, **Nuxt**, **React** and **Next.js**
 - 🚫 No optional tracker loads before consent (opt-in / GDPR by default)
 - 📊 Built-in loaders for Google Analytics, Google Tag Manager, Meta Pixel,
   Microsoft Clarity and Hotjar — each disable-able or replaceable per site
+  (plus cookie clean-up for Yandex Metrica)
 - 🟢 Google **Consent Mode** v2 (`basic` / `advanced`) and **Global Privacy Control**
 - ♻️ Consent revision, revoke, and known-cookie erasure
 - 🌍 English & Russian copy out of the box, deeply overridable
@@ -213,7 +214,7 @@ interface PrivacyConsentConfig {
   gpc?: {
     enabled?: boolean               // default true
     deniedCategories?: Category[]   // default ['marketing']
-    lockDeniedCategories?: boolean  // default true
+    lockDeniedCategories?: boolean  // default true — see "Global Privacy Control"
     showHonoredNotice?: boolean     // default true
   }
   trackers?: {
@@ -222,6 +223,7 @@ interface PrivacyConsentConfig {
     metaPixel?: TrackerSettings         // → marketing
     clarity?: TrackerSettings           // → analytics
     hotjar?: TrackerSettings & { version?: number }  // → analytics
+    yandexMetrica?: TrackerSettings     // → analytics (cookie clean-up only, no built-in loader)
   }
   guiOptions?: GuiOptions           // passed to vanilla-cookieconsent
   onFirstConsent?, onConsent?, onChange?   // lifecycle hooks
@@ -277,13 +279,55 @@ enable **both** direct Google Analytics and GTM, a warning is emitted (GA is
 usually deployed *through* GTM, so running both double-counts hits). Set
 `allowDirectGaWithGtm: true` if this is intentional.
 
+### Yandex Metrica
+
+There is no built-in Metrica loader. Load it with a custom `loader`, or through
+consent-managed script tags (`manageScriptTags: true`):
+
+```html
+<script type="text/plain" data-category="analytics">/* Metrica snippet */</script>
+```
+
+Declare `trackers: { yandexMetrica: {} }` (optionally with `category`) so its
+`_ym_uid`, `_ym_d`, `_ym_isad`, `_ym_visorc` and other `_ym*` cookies are
+cleared when that category is withdrawn. `resetPrivacyConsent()` always erases
+them, declared or not.
+
 ### Global Privacy Control (GPC)
 
 When the browser sends a GPC signal, the categories in `gpc.deniedCategories`
-(default `['marketing']`) are turned off — **even if the stored consent
-previously accepted them** (an active GPC signal overrides old consent). The
-banner still shows so the visitor can manage the remaining categories; denied
-categories are locked and a notice explains that GPC was honoured.
+(default `['marketing']`) are turned off. The banner still shows so the visitor
+can manage the remaining categories, and a notice in the preferences modal
+explains that GPC was honoured (`showHonoredNotice`).
+
+While the signal is active:
+
+1. **A denied category is never accepted implicitly.** "Accept all",
+   "Reject all", closing the banner, `acceptCategory()` (the controller's or
+   vanilla-cookieconsent's) and stored consent all leave it off. Stored consent
+   that accepted it — e.g. given before the visitor enabled GPC — is
+   overridden on page load and re-persisted without it (`onChange` reports the
+   change).
+2. **`lockDeniedCategories: true` (default)** — the denied toggles are shown
+   off and disabled in the preferences modal, and nothing can enable them.
+3. **`lockDeniedCategories: false`** — the visitor may switch a denied category
+   on in the preferences modal and click "Save preferences". That explicit
+   choice is honoured, persisted in the consent cookie (`data.veraCmpGpcOptIn`)
+   and kept on later visits. "Accept all" alone never enables a denied
+   category; switching it off again (or "Reject all") withdraws the opt-in.
+4. **Script tags are held back.** With `manageScriptTags: true`,
+   `<script type="text/plain" data-category="…">` tags of denied categories are
+   neutralised before vanilla-cookieconsent starts, so they never execute —
+   unless the category was explicitly enabled under point 3, in which case
+   they run as usual.
+
+Built-in loaders and Google Consent Mode follow the same rules: they only ever
+see the enforced categories. GPC-denied categories are deliberately not marked
+`readOnly` in vanilla-cookieconsent, because it force-accepts read-only
+categories on every consent action. Note that vanilla-cookieconsent's raw
+`cc:onConsent` / `cc:onFirstConsent` window events can carry the state from
+just before enforcement — use this library's `onConsent` / `onFirstConsent` /
+`onChange` hooks instead.
 
 ### Revoke & revision
 

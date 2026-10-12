@@ -97,6 +97,11 @@
   --vera-cmp-secondary-hover-bg: #2f3440;
 }
 
+/* Toggles locked off by Global Privacy Control: visibly unavailable. */
+#cc-main .section__toggle:disabled:not(:checked) ~ .toggle__icon {
+  opacity: 0.5;
+}
+
 /* Small-screen affordances (base styles are already responsive). */
 @media (max-width: 640px) {
   #cc-main .cm__btn:not(.cm__btn--close),
