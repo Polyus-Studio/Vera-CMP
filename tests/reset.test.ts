@@ -39,4 +39,20 @@ describe('reset / revoke', () => {
     expect(document.cookie).not.toContain('_fbp')
     expect(vi.mocked(CC.run)).toHaveBeenCalledTimes(1)
   })
+
+  it('erases Yandex Metrica cookies even when Metrica is loaded via script tags', async () => {
+    document.cookie = '_ym_uid=1'
+    document.cookie = '_ym_d=2'
+    document.cookie = '_ym_isad=2'
+    document.cookie = '_ym_visorc=w'
+    document.cookie = '_ym_hostIndex=0'
+    document.cookie = 'keep_me=1'
+    const controller = initPrivacyConsent(config)
+    await controller.ready
+
+    await resetPrivacyConsent({ reload: false })
+
+    expect(document.cookie).not.toMatch(/(^|;\s*)_ym/)
+    expect(document.cookie).toContain('keep_me=1')
+  })
 })

@@ -38,6 +38,7 @@ export function createCookieConsentMock() {
     validConsent: vi.fn(() => false),
     eraseCookies: vi.fn(),
     getCookie: vi.fn(() => ({})),
+    setCookieData: vi.fn(() => true),
     getUserPreferences: vi.fn(() => ({
       acceptType: 'custom' as const,
       acceptedCategories: ccState().accepted.slice(),

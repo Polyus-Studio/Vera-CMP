@@ -25,6 +25,7 @@ const ALL_KEYS: readonly TrackerKey[] = [
   'metaPixel',
   'clarity',
   'hotjar',
+  'yandexMetrica',
 ]
 
 interface ResolvedTracker {
@@ -71,6 +72,15 @@ function runBuiltInLoader(resolved: ResolvedTracker): void {
       return loadMicrosoftClarity(id)
     case 'hotjar':
       return loadHotjar(id, (settings as HotjarSettings).version)
+    case 'yandexMetrica':
+      // Cookie management only: Metrica is loaded by a custom `loader` or by
+      // consent-managed script tags.
+      console.warn(
+        '[vera-cmp] trackers.yandexMetrica has no built-in loader. Provide ' +
+          '`loader`, or load Metrica via <script type="text/plain" ' +
+          'data-category> tags with `manageScriptTags: true`.',
+      )
+      return
   }
 }
 

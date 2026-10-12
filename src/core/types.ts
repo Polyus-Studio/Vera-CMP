@@ -57,6 +57,15 @@ export interface TrackersConfig {
   clarity?: TrackerSettings
   /** Hotjar. Defaults to the `analytics` category. */
   hotjar?: HotjarSettings
+  /**
+   * Yandex Metrica. Defaults to the `analytics` category. There is no
+   * built-in loader: provide `loader`, or load Metrica through
+   * `<script type="text/plain" data-category="analytics">` tags
+   * (`manageScriptTags: true`) and declare `yandexMetrica: {}` so its `_ym*`
+   * cookies are cleared when the category is withdrawn. They are always
+   * erased by `resetPrivacyConsent()`.
+   */
+  yandexMetrica?: TrackerSettings
 }
 
 export interface ConsentModeConfig {
@@ -74,9 +83,20 @@ export interface ConsentModeConfig {
 export interface GpcConfig {
   /** Honour the browser Global Privacy Control signal. @default true */
   enabled?: boolean
-  /** Categories forced off when GPC is active. @default ['marketing'] */
+  /**
+   * Categories forced off when GPC is active. "Accept all", "Reject all",
+   * closing the banner and `acceptCategory()` never accept them, and stored
+   * consent that accepted them is overridden. @default ['marketing']
+   */
   deniedCategories?: Category[]
-  /** Render GPC-denied categories as locked (read-only) in the UI. @default true */
+  /**
+   * `true`: denied categories are shown switched off and disabled in the
+   * preferences modal and nothing can enable them while GPC is active.
+   * `false`: the visitor may still switch a denied category on in the
+   * preferences modal and save; that explicit choice is honoured and
+   * persisted ("Accept all" alone never enables it).
+   * @default true
+   */
   lockDeniedCategories?: boolean
   /** Append a notice explaining that GPC was honoured. @default true */
   showHonoredNotice?: boolean

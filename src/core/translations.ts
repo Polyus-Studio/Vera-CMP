@@ -5,6 +5,8 @@ import type { Category, PrivacyConsentConfig, SupportedLocale } from './types'
 interface BuildOptions {
   gpcActive: boolean
   gpcDeniedCategories: Category[]
+  /** `gpc.lockDeniedCategories` — whether denied categories can be enabled. */
+  gpcLocked: boolean
   showGpcNotice: boolean
 }
 
@@ -32,14 +34,19 @@ const CATEGORY_LABELS: Record<SupportedLocale, Record<Category, string>> = {
 function gpcNotice(
   locale: SupportedLocale,
   deniedCategories: Category[],
+  locked: boolean,
 ): string {
   const labels = deniedCategories
     .map((category) => CATEGORY_LABELS[locale][category])
     .join(', ')
   if (locale === 'ru') {
-    return `<p><strong>Global Privacy Control:</strong> ваш браузер отправляет сигнал приватности, поэтому следующие категории отключены автоматически: ${labels}.</p>`
+    return locked
+      ? `<p><strong>Global Privacy Control:</strong> ваш браузер отправляет сигнал приватности, поэтому следующие категории отключены и не могут быть включены, пока сигнал активен: ${labels}.</p>`
+      : `<p><strong>Global Privacy Control:</strong> ваш браузер отправляет сигнал приватности, поэтому следующие категории отключены: ${labels}. Принятие всех cookie их не включает; при желании вы можете включить их по отдельности ниже.</p>`
   }
-  return `<p><strong>Global Privacy Control:</strong> your browser is sending a privacy signal, so the following categories are turned off automatically: ${labels}.</p>`
+  return locked
+    ? `<p><strong>Global Privacy Control:</strong> your browser is sending a privacy signal, so the following categories are turned off and cannot be switched on while the signal is active: ${labels}.</p>`
+    : `<p><strong>Global Privacy Control:</strong> your browser is sending a privacy signal, so the following categories are turned off: ${labels}. Accepting all cookies does not switch them on; you can enable them individually below if you wish.</p>`
 }
 
 function englishBase(config: PrivacyConsentConfig): CC.Translation {
@@ -91,7 +98,7 @@ function englishBase(config: PrivacyConsentConfig): CC.Translation {
         {
           title: `${CATEGORY_LABELS.en.analytics} cookies`,
           description:
-            'Help us understand how visitors use the site so we can improve it. All data is aggregated.',
+            'Help us measure traffic and understand how visitors use the site so we can improve it. Analytics services may set cookies and process usage data such as pages viewed, visit duration and device information.',
           linkedCategory: 'analytics',
         },
         {
@@ -158,7 +165,7 @@ function russianBase(config: PrivacyConsentConfig): CC.Translation {
         {
           title: `${CATEGORY_LABELS.ru.analytics} cookie`,
           description:
-            'Помогают понять, как посетители используют сайт, чтобы улучшать его. Данные обезличены.',
+            'Помогают измерять посещаемость и понимать, как посетители используют сайт, чтобы улучшать его. Сервисы аналитики могут устанавливать cookie и обрабатывать данные об использовании сайта, например о просмотренных страницах, длительности визита и устройстве.',
           linkedCategory: 'analytics',
         },
         {
@@ -196,7 +203,11 @@ export function buildTranslations(
     let translation = bases[locale]
 
     if (options.gpcActive && options.showGpcNotice) {
-      const notice = gpcNotice(locale, options.gpcDeniedCategories)
+      const notice = gpcNotice(
+        locale,
+        options.gpcDeniedCategories,
+        options.gpcLocked,
+      )
       const intro = translation.preferencesModal.sections[0]
       if (intro) {
         intro.description = `${notice}${intro.description ?? ''}`
